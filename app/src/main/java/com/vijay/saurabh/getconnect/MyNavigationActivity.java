@@ -1,10 +1,14 @@
 package com.vijay.saurabh.getconnect;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -15,6 +19,7 @@ import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -45,6 +50,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -79,6 +85,7 @@ public class MyNavigationActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, OnMapReadyCallback,TaskLoadedCallback,
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener,GoogleMap.OnMapClickListener {
     FirebaseAuth auth;
+    TextView distance;
     GoogleMap mMap;
     GoogleApiClient client;
     LocationRequest request;
@@ -116,6 +123,7 @@ public class MyNavigationActivity extends AppCompatActivity
         //getSupportActionBar().hide();
         setSupportActionBar(toolbar);
         auth = FirebaseAuth.getInstance();
+        distance = findViewById(R.id.dist);
 
 
 
@@ -343,13 +351,21 @@ public class MyNavigationActivity extends AppCompatActivity
 
         if(latLngplace!=null)
         {
-            mMap.addMarker(new MarkerOptions().position(latLngplace).title(place).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
+            mMap.addMarker(new MarkerOptions().position(latLngplace).title(place).icon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.milobaba)));
             //mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLngplace, 16));
+            //mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLngplace, 16));
             addPath(latLngplace);
             walking();
         }
 
+    }
+    private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId) {
+        Drawable vectorDrawable = ContextCompat.getDrawable(context, vectorResId);
+        vectorDrawable.setBounds(0, 0, vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight());
+        Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        vectorDrawable.draw(canvas);
+        return BitmapDescriptorFactory.fromBitmap(bitmap);
     }
 
     private void displayGeofences() {
@@ -361,8 +377,8 @@ public class MyNavigationActivity extends AppCompatActivity
 
             CircleOptions circleOptions1 = new CircleOptions()
                     .center(new LatLng(sg.getLatitude(), sg.getLongitude()))
-                    .radius(sg.getRadius()).strokeColor(Color.BLACK)
-                    .strokeWidth(2).fillColor(0x500000ff);
+                    .radius(sg.getRadius()).strokeColor(Color.WHITE)
+                    .strokeWidth(2).fillColor(0x80FF6347);
             mMap.addCircle(circleOptions1);
         }
 
@@ -383,9 +399,6 @@ public class MyNavigationActivity extends AppCompatActivity
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_search) {
-            return true;
-        }
 
         return super.onOptionsItemSelected(item);
     }
@@ -503,13 +516,14 @@ public class MyNavigationActivity extends AppCompatActivity
                 addPath(latLng);
                 displayGeofences();
             }
+            distance.setText("");
         }
     }
     public void walking()
     {
         if(latLng!=null) {
             final MarkerOptions[] options = {new MarkerOptions().position(latLng).title("ME")};
-            options[0].icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_CYAN));
+            options[0].icon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.milobaba));
             final Marker[] marker = {mMap.addMarker(options[0])};
             mMap.setOnMyLocationChangeListener(new GoogleMap.OnMyLocationChangeListener() {
                 @Override
@@ -519,9 +533,10 @@ public class MyNavigationActivity extends AppCompatActivity
                         latLng = new LatLng(location.getLatitude(), location.getLongitude());
                         marker[0].remove();
                         options[0] = new MarkerOptions().position(latLng).title("ME");
-                        options[0].icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_CYAN));
+                        options[0].icon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.milobaba));
                         marker[0] = mMap.addMarker(options[0]);
                         double valueResult = getdistance(latLng, dest);
+                        distance.setText(Double.toString(round(valueResult,2))+" Km");
                         int i;
                         if (PointsParser.points != null) {
                             for (i = 0; i < PointsParser.points.size(); i++) {
@@ -553,6 +568,7 @@ public class MyNavigationActivity extends AppCompatActivity
             new FetchURL(MyNavigationActivity.this).execute(getUrl(place1.getPosition(), place2.getPosition(), "walking"), "walking");
             // Getting URL to the Google Directions API
             double valueResult = getdistance(origin,dest);
+            distance.setText(Double.toString(round(valueResult,2))+" Km");
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(origin, 15));
             walking();
         }
@@ -585,7 +601,7 @@ public class MyNavigationActivity extends AppCompatActivity
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLngcurr,15));
             MarkerOptions options = new MarkerOptions();
             options.position(latLng).title("ME");
-            options.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
+            options.icon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.milobaba));
             mMap.addMarker(options);
         }
         if (markerPoints.size() <= 1) {
@@ -598,9 +614,11 @@ public class MyNavigationActivity extends AppCompatActivity
             // Setting the position of the marker
             options.position(latLngcurr);
             if (markerPoints.size() == 1) {
-                options.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
+                options.icon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.milobaba));
             } else if (markerPoints.size() == 2) {
-                options.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                options.icon(bitmapDescriptorFromVector(getApplicationContext(),R.drawable.milobaba));
+                double valueResult = getdistance(latLng,latLngcurr);
+                distance.setText(Double.toString(round(valueResult,2))+" Km");
             }
             if(latLngcurr==latLng)
                 options.title("ME");
